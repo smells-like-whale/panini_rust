@@ -268,13 +268,9 @@ impl AltFeatureBundle {
                 }
             }
             AltFeature::High => {
-                if self.dorsal.is_none() {
-                    false
-                } else {
-                    let this = self.dorsal;
-                    match this {
-                        Some(val) => val.high,
-                        None => false,
+                    match self.dorsal {
+                        Some(val) => Some(val.high),
+                        None => None,
                     }
                 }
             }
