@@ -1,5 +1,5 @@
 use super::Feature;
-use crate::util;
+use crate::{util, xsampa};
 
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -33,9 +33,10 @@ pub enum AltFeature {
     Strident,
     Lateral,
     DelayedRelease,
+    Long,
 } //25 values
 
-const ALT_FEATURES: [AltFeature; 23] = [
+const ALT_FEATURES: [AltFeature; 24] = [
     AltFeature::Consonental,
     AltFeature::Sonorant,
     AltFeature::Syllabic,
@@ -59,6 +60,7 @@ const ALT_FEATURES: [AltFeature; 23] = [
     AltFeature::Lateral,
     AltFeature::DelayedRelease,
     AltFeature::Nasal,
+    AltFeature::Long,
 ]; //25 values
 
 impl AltFeature {
@@ -82,7 +84,7 @@ impl AltFeature {
             AltFeature::Back => "Back",
 
             AltFeature::Pharyngeal => "Pharyngeal",
-            AltFeature::AdvancedTongueRoot => "AdvancedToungueRoot",
+            AltFeature::AdvancedTongueRoot => "AdvancedTongueRoot",
 
             AltFeature::Voice => "Voice",
             AltFeature::SpreadGlottis => "SpreadGlottis",
@@ -93,6 +95,7 @@ impl AltFeature {
             AltFeature::Lateral => "Lateral",
             AltFeature::DelayedRelease => "DelayedRelease",
             AltFeature::Nasal => "Nasal",
+            AltFeature::Long => "Long",
         }
     }
 }
@@ -176,6 +179,7 @@ pub struct AltFeatureBundle {
     strident: bool,
     lateral: bool,
     delayed_release: bool,
+    long: bool,
     //modifiers: Vec<String>,
 }
 
@@ -200,118 +204,120 @@ impl AltFeatureBundle {
             strident: false,
             lateral: false,
             delayed_release: false,
+            long: false,
         }
     }
 
-    const fn get(&self, fet: AltFeature) -> bool {
-        match fet {
-            AltFeature::Consonental => self.consonental,
-            AltFeature::Sonorant => self.sonorant,
-            AltFeature::Syllabic => self.syllabic,
+    pub fn to_string(&self) -> String {
+        let mut str = String::new();
 
-            AltFeature::Labial => self.labial.is_some(),
+        for fet in ALT_FEATURES {
+            let b = self.get_opt(fet);
+
+            match b {
+                Some(true) => {
+                    str.push('+');
+                    str.push_str(&fet.to_string());
+                    str.push('\n');
+                }
+                Some(false) => {
+                    str.push('-');
+                    str.push_str(&fet.to_string());
+                    str.push('\n');
+                        }
+                None => {
+                    str.push('∅');
+                    str.push('\n');
+
+                },
+            }
+        }
+        str
+    }
+   
+    pub const fn get(&self, fet: AltFeature) -> bool {
+        match self.get_opt(fet) {
+            Some(b) => b,
+            None => false,
+        }
+}
+
+    const fn get_opt(&self, fet: AltFeature) -> Option<bool> {
+        match fet {
+            AltFeature::Consonental => Some(self.consonental),
+            AltFeature::Sonorant => Some(self.sonorant),
+            AltFeature::Syllabic => Some(self.syllabic),
+
+            AltFeature::Labial => Some(self.labial.is_some()),
             AltFeature::Round => {
-                if self.labial.is_none() {
-                    false
-                } else {
-                    let this = self.labial;
-                    match this {
-                        Some(val) => val.round,
-                        None => false,
-                    }
+                    match self.labial {
+                        Some(val) => Some(val.round),
+                        None => None,
                 }
             }
-            AltFeature::Coronal => self.coronal.is_some(),
+            AltFeature::Coronal => Some(self.coronal.is_some()),
             AltFeature::Anterior => {
-                if self.coronal.is_none() {
-                    false
-                } else {
-                    let this = self.coronal;
-                    match this {
-                        Some(val) => val.anterior,
-                        None => false,
+                    match self.coronal {
+                        Some(val) => Some(val.anterior),
+                        None => None,
                     }
-                }
             }
             AltFeature::Distributed => {
-                if self.coronal.is_none() {
-                    false
-                } else {
-                    let this = self.coronal;
-                    match this {
-                        Some(val) => val.distributed,
-                        None => false,
+                    match self.coronal {
+                        Some(val) => Some(val.distributed),
+                        None => None,
                     }
-                }
             }
-            AltFeature::Dorsal => self.dorsal.is_some(),
+            AltFeature::Dorsal => Some(self.dorsal.is_some()),
             AltFeature::Front => {
-                if self.dorsal.is_none() {
-                    false
-                } else {
-                    let this = self.dorsal;
-                    match this {
-                        Some(val) => val.front,
-                        None => false,
+                    match self.dorsal {
+                        Some(val) => Some(val.front),
+                        None => None,
                     }
-                }
             }
             AltFeature::Back => {
-                if self.dorsal.is_none() {
-                    false
-                } else {
-                    let this = self.dorsal;
-                    match this {
-                        Some(val) => val.back,
-                        None => false,
+                    match self.dorsal {
+                        Some(val) => Some(val.back),
+                        None => None,
                     }
-                }
             }
             AltFeature::High => {
                     match self.dorsal {
                         Some(val) => Some(val.high),
                         None => None,
                     }
-                }
             }
             AltFeature::Low => {
-                if self.dorsal.is_none() {
-                    false
-                } else {
-                    let this = self.dorsal;
-                    match this {
-                        Some(val) => val.low,
-                        None => false,
+                    match self.dorsal {
+                        Some(val) => Some(val.low),
+                        None => None,
                     }
-                }
             }
-            AltFeature::Pharyngeal => self.pharyngeal.is_some(),
+            AltFeature::Pharyngeal => Some(self.pharyngeal.is_some()),
 
             AltFeature::AdvancedTongueRoot => {
-                if self.pharyngeal.is_none() {
-                    false
-                } else {
                     let this = self.pharyngeal;
                     match this {
-                        Some(val) => val.atr,
-                        None => false,
+                        Some(val) => Some(val.atr),
+                        None => Some(false),
                     }
-                }
             }
 
-            AltFeature::Voice => self.voice,
-            AltFeature::SpreadGlottis => self.spread_glottis,
-            AltFeature::ConstrictedGlottis => self.constricted_glottis,
+            AltFeature::Voice => Some(self.voice),
+            AltFeature::SpreadGlottis => Some(self.spread_glottis),
+            AltFeature::ConstrictedGlottis => Some(self.constricted_glottis),
 
-            AltFeature::Continuant => self.continuant,
-            AltFeature::Nasal => self.nasal,
-            AltFeature::Strident => self.strident,
-            AltFeature::Lateral => self.lateral,
-            AltFeature::DelayedRelease => self.delayed_release,
+            AltFeature::Continuant => Some(self.continuant),
+            AltFeature::Nasal => Some(self.nasal),
+            AltFeature::Strident => Some(self.strident),
+            AltFeature::Lateral => Some(self.lateral),
+            AltFeature::DelayedRelease => Some(self.delayed_release),
+            AltFeature::Long => Some(self.long),
         }
     }
 
-    const fn set(mut self, fet: AltFeature, b: bool) -> Self {
+
+    pub fn set(&mut self, fet: AltFeature, b: bool) -> Self {
         match fet {
             AltFeature::Consonental => {
                 self.consonental = b;
@@ -493,12 +499,92 @@ impl AltFeatureBundle {
             AltFeature::DelayedRelease => {
                 self.delayed_release = b;
             }
+            AltFeature::Long => {
+                self.long = b;
+            }
         }
-        self
+        *self
+    }
+
+
+    pub fn from_token(_s: &str) -> AltFeatureBundle {
+        let tokens = xsampa::xsampa_split(_s);
+        let mut token_iterator = tokens.iter().map(|x| xsampa::token_type(x));
+        //Check if initial is a valid segmental token
+        if token_iterator.next() != Some((true, false)) {
+            eprintln!("Error: Not a valid initial\n");
+            println!("{:?}\n", tokens);
+        }
+        //Check if the trailing tokens are valid non-segmental tokens
+        for temp in token_iterator.skip(1) {
+            if temp != (true, true) {
+                eprintln!("Error: Invalid token found\n");
+                println!("{:?}\n", tokens);
+            }
+        }
+
+        //let modifs: Vec<String> = tokens.iter().skip(1).map(|x| x.to_string()).collect();
+        //Is the initial a consonent?
+        let init = &tokens[0];
+        let mut m: u8 = 0;
+        let mut p: u8 = 0;
+        let mut c: u8 = 0;
+        
+
+        let mut fet = AltFeatureBundle::new();
+
+        for list in CONSONENT_CHART {
+            for token in list {
+                if init == token {
+                    fet = from_token_intermediate(c, m, p);
+                }
+                p += 1;
+            }
+            p = 0;
+            m += 1;
+        }
+        c += 1;
+        m = 0;
+        p = 0;
+
+        for list in NON_PULMONIC_CONSONANT_CHART {
+            for token in list {
+                if init == token {
+                    fet = from_token_intermediate(c, m, p);
+                }
+                p += 1;
+            }
+        }
+        c += 1;
+        m = 0;
+        p = 0;
+
+        for list in VOWEL_CHART {
+            for token in list {
+                if init == token {
+                    fet = from_token_intermediate(c, m, p);
+                }
+                p += 1;
+            }
+            p = 0;
+            m += 1;
+        }
+        if fet == AltFeatureBundle::new() {
+            eprintln!("ERROR: no valid token found");
+        }
+
+        //for t in modifs {
+        //    let modif = SegModif::from_string(&t);
+        //    match modif {
+        //        Some(modifier) => fet.modify(&modifier),
+        //        None =>(),
+        //    }
+        //}
+        fet
     }
 }
 
-fn _f(c: u8, m: u8, p: u8) -> AltFeatureBundle {
+fn from_token_intermediate(c: u8, m: u8, p: u8) -> AltFeatureBundle {
     let mut temp: AltFeatureBundle = AltFeatureBundle::new();
     match c {
         0 =>{  

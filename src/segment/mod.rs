@@ -1,15 +1,21 @@
-use feature_sound_change::{Conjunct, FeatureSoundChange};
-use token_sound_change::token_sound_change::TokenSoundChange;
+use feature::{
+    // feature_sound_change::FeatureSoundChange, 
+    Feature, 
+    FEATURES
+};
+use crate::segment::segment_sound_change::SCSegment;
+// use token::token_sound_change::TokenSoundChange;
 
 use crate::{
-    util::{self, utilities::concat_by_line},
+    util::utilities::concat_by_line,
     xsampa,
 };
 
 pub mod alt_segment;
-pub mod feature_sound_change;
+pub mod feature;
 pub mod segment_sound_change;
-pub mod token_sound_change;
+pub mod segment_string;
+pub mod segment_str;
 //#[derive(Clone)]
 //struct SegmentModifier {
 //    label: String,
@@ -18,248 +24,10 @@ pub mod token_sound_change;
 //impl SegmentModifier {
 //}
 
-pub enum SoundChange {
-    Seg(FeatureSoundChange),
-    Tok(TokenSoundChange),
-}
 
-pub trait PhonObject {
-    fn apply(&self, sc: &SoundChange) -> Self;
-    fn apply_mut(&mut self, sc: &SoundChange);
-}
+
 
 pub type TokenString = Vec<String>;
-
-//This represents an uninterrupted utterence, like a "word", or a sequence of "words", without "spaces"
-#[derive(Clone, Debug)]
-pub struct SegmentString {
-    segments: Vec<Segment>,
-}
-
-impl SegmentString {
-    pub fn print_words(self_arr: &[Self]) -> String {
-        let words: Vec<String> = self_arr.iter().map(|word| word.to_long_string()).collect();
-        let mut x = vec!["\n\n".to_string() + &Feature::list_features()];
-        x.extend(words);
-        concat_by_line(&x, "  ")
-    }
-
-    pub fn new() -> Self {
-        let segments = Vec::new();
-        Self { segments }
-    }
-
-    pub fn from_string(str: &str) -> Self {
-        let segment_tokens = xsampa::xsampa_split_segments(str);
-        let segments = segment_tokens
-            .iter()
-            .map(|token| Segment::from_string(token))
-            .collect();
-
-        Self { segments }
-    }
-
-    pub fn to_string(&self) -> String {
-        let mut str = String::new();
-
-        for i in 0..self.segments.len() {
-            str.push_str(&xsampa::xsampa(&self.segments[i].tokens.concat()));
-        }
-        str
-    }
-
-    pub fn to_long_string(&self) -> String {
-        let mut str_vec = Vec::new(); //vec![fets];
-
-        for str in self.to_string_vec() {
-            str_vec.push(str);
-        }
-
-        concat_by_line(&str_vec, "")
-    }
-
-    fn to_string_vec(&self) -> Vec<String> {
-        let mut str_vec: Vec<String> = Vec::new();
-
-        for s in &self.segments {
-            str_vec.push(s.to_short_debug_string());
-        }
-
-        str_vec
-    }
-
-    pub fn push(&mut self, segment: Segment) {
-        self.segments.push(segment);
-    }
-
-    pub fn pop(&mut self) -> Option<Segment> {
-        self.segments.pop()
-    }
-
-    pub fn peek(&self, i: isize) -> Option<Segment> {
-        if i < 0 {
-            return None;
-        } else {
-            Some(self.segments.get(i.unsigned_abs())?.to_owned())
-        }
-    }
-}
-
-#[repr(u8)]
-#[derive(Clone, Copy)]
-pub enum Feature {
-    //Class
-    Consonental,
-    Sonorant,
-    Syllabic,
-    Approximant,
-    //Place
-    Labial,
-    Round,
-
-    Coronal,
-    Anterior,
-    Distributed,
-
-    Dorsal,
-    High,
-    Low,
-    Front,
-    Back,
-    Tense,
-    //Laryngeal
-    Pharyngeal,
-    //advanced_tongue_root ,
-    Voice,
-    SpreadGlottis,
-    ConstrictedGlottis,
-    //Manner
-    Continuant,
-    Strident,
-    Lateral,
-    DelayedRelease,
-    Nasal,
-    Length,
-} //25 values
-
-pub const FEATURES: [Feature; 25] = [
-    Feature::Consonental,
-    Feature::Sonorant,
-    Feature::Syllabic,
-    Feature::Approximant,
-    Feature::Labial,
-    Feature::Round,
-    Feature::Coronal,
-    Feature::Anterior,
-    Feature::Distributed,
-    Feature::Dorsal,
-    Feature::High,
-    Feature::Low,
-    Feature::Front,
-    Feature::Back,
-    Feature::Tense,
-    Feature::Pharyngeal,
-    Feature::Voice,
-    Feature::SpreadGlottis,
-    Feature::ConstrictedGlottis,
-    Feature::Continuant,
-    Feature::Strident,
-    Feature::Lateral,
-    Feature::DelayedRelease,
-    Feature::Nasal,
-    Feature::Length,
-]; //25 values
-
-impl Feature {
-    pub fn list_features() -> String {
-        let mut str = String::new();
-        str.push_str(&format!("{} ", FEATURES[0].to_string()));
-        let mut i = 1;
-        loop {
-            str.push_str(&format!("\n{} ", FEATURES[i].to_string()));
-            if i < 24 {
-                i += 1;
-            } else {
-                break;
-            }
-        }
-        str
-    }
-    pub fn to_string(self) -> &'static str {
-        match self {
-            Feature::Consonental => "Consonental",
-            Feature::Sonorant => "Sonorant",
-            Feature::Syllabic => "Syllabic",
-            Feature::Approximant => "Approximant",
-
-            Feature::Labial => "Labial",
-            Feature::Round => "Round",
-
-            Feature::Coronal => "Coronal",
-            Feature::Anterior => "Anterior",
-            Feature::Distributed => "Distributed",
-
-            Feature::Dorsal => "Dorsal",
-            Feature::High => "High",
-            Feature::Low => "Low",
-            Feature::Front => "Front",
-            Feature::Back => "Back",
-            Feature::Tense => "Tense",
-
-            Feature::Pharyngeal => "Pharyngeal",
-
-            Feature::Voice => "Voice",
-            Feature::SpreadGlottis => "SpreadGlottis",
-            Feature::ConstrictedGlottis => "ConstrictedGlottis",
-
-            Feature::Continuant => "Continuant",
-            Feature::Strident => "Strident",
-            Feature::Lateral => "Lateral",
-            Feature::DelayedRelease => "DelayedRelease",
-            Feature::Nasal => "Nasal",
-            Feature::Length => "Length",
-        }
-    }
-
-    pub fn from_string(str: &str) -> Option<Self> {
-        let binding = str.to_lowercase();
-        let s = binding.as_str();
-        match s {
-            "consonental" | "cons" => Some(Feature::Consonental),
-            "sonorant" | "son" => Some(Feature::Sonorant),
-            "syllabic" | "syl" => Some(Feature::Syllabic),
-            "approximant" | "appr" => Some(Feature::Approximant),
-
-            "labial" | "lab" => Some(Feature::Labial),
-            "round" | "rounded" | "rnd" => Some(Feature::Round),
-
-            "coronal" | "cor" => Some(Feature::Coronal),
-            "anterior" | "ant" => Some(Feature::Anterior),
-            "distributed" | "dist" => Some(Feature::Distributed),
-
-            "dorsal" | "dors" | "dor" => Some(Feature::Dorsal),
-            "high" => Some(Feature::High),
-            "low" => Some(Feature::Low),
-            "front" => Some(Feature::Front),
-            "back" => Some(Feature::Back),
-            "tense" => Some(Feature::Tense),
-
-            "pharyngeal" | "phar" => Some(Feature::Pharyngeal),
-
-            "voice" | "voi" => Some(Feature::Voice),
-            "spreadGlottis" | "sc" | "SG" => Some(Feature::SpreadGlottis),
-            "constrictedGlottis" | "cg" | "CG" => Some(Feature::ConstrictedGlottis),
-
-            "continuant" | "cont" => Some(Feature::Continuant),
-            "strident" | "strid" | "str" => Some(Feature::Strident),
-            "lateral" | "lat" => Some(Feature::Lateral),
-            "delayedRelease" | "delRel" | "delrel" => Some(Feature::DelayedRelease),
-            "nasal" | "nas" => Some(Feature::Nasal),
-            "length" | "len" => Some(Feature::Length),
-            _ => None,
-        }
-    }
-}
 
 pub struct SegModif<'a> {
     token: &'a str, //This value never needs to be modified as there are a predetermined # of SegModifs
@@ -345,12 +113,107 @@ const MODIFIERS: [SegModif; 10] = [
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Segment {
+pub enum Segment {
+    Seg(ASegment),
+    WordEdge,
+}
+
+impl Segment {
+    pub const fn new() -> Self {
+        let s = ASegment::new();
+        Segment::Seg(s)
+    }
+
+    pub fn from_feature_bundle(features: FeatureBundle) -> Self {
+        let s = ASegment::from_feature_bundle(features);
+        Segment::Seg(s)
+    }
+
+    pub fn add_modif(&mut self, modif: SegModif) {
+        match self {
+            Segment::Seg(s) => s.add_modif(modif),
+            Segment::WordEdge => {eprintln!("Error@Segment::ASegment::add_modif(): Cannot modify WordEdge enum variant")},
+        }
+    }
+
+    pub fn from_string(str: &str) -> Self {
+        match str {
+            "#" => Segment::WordEdge,
+            _   => Segment::Seg(ASegment::from_string(str)),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Segment::Seg(s) => xsampa::xsampa(&s.tokens.concat()),
+            Segment::WordEdge => "".to_string(),
+        }
+    }
+
+    pub fn to_debug_string(&self) -> String {
+        match self {
+            Segment::Seg(seg) => seg.to_debug_string(),
+            Segment::WordEdge => "#".to_string(),
+        }
+    }
+
+    pub fn to_short_debug_string(&self) -> String {
+        match self {
+            Segment::Seg(seg) => seg.to_short_debug_string(),
+            Segment::WordEdge => "#".to_string(),
+        }
+    }
+
+    pub fn matches(&self, scseg: &SCSegment) -> bool {
+        match self {
+            Segment::Seg(seg) => seg.matches(scseg),
+            Segment::WordEdge => scseg == &SCSegment::WordEdge,
+        }
+    }
+
+    pub fn tokens(&self) -> TokenString {
+        match self {
+            Segment::Seg(seg) => seg.tokens.clone(),
+            Segment::WordEdge => Vec::new(),
+        }
+    }
+    
+    pub fn features(&self) -> FeatureBundle {
+        match self {
+            Segment::Seg(seg) => seg.features.clone(),
+            Segment::WordEdge => FeatureBundle::new(),
+        }
+    }
+
+    pub fn refresh_tokens(&mut self) {
+        match self {
+            Segment::Seg(s) => s.tokens = xsampa::xsampa_split(&s.features.to_string()),
+            Segment::WordEdge => eprintln!("Error@Segment::Segment::refresh_tokens(): WordEdge enum variant holds no tokens"),
+        }
+    }
+
+    pub fn set_feature(&mut self, fet: Feature, b: bool) {
+        match self {
+            Segment::Seg(s) => s.features.set(fet, b),
+            Segment::WordEdge => eprintln!("Error@Segment::Segment::set_features: WordEdge enum variant holds no features"),
+        }
+    }
+
+    pub fn matches_all(&self, fet_arr: &[FeatureBundle]) -> bool {
+        match self {
+            Segment::Seg(s) => s.matches_all(fet_arr),
+            Segment::WordEdge => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ASegment {
     pub tokens: TokenString, // A list containing a segment token and all its diacritics
     pub features: FeatureBundle, // The list of features for the segment in question, after diacritics are taken to account
 }
 
-impl Segment {
+impl ASegment {
     //pub const fn new() -> Self {
     //    let token: Vec<String> = Vec::new();
     //    let features = SegmentFeatures::new();
@@ -391,11 +254,16 @@ impl Segment {
             length: Some(false),
             //modifiers: vec![],
         };
-        Segment { tokens, features }
+        ASegment { tokens, features }
     }
 
-    //This, in effect, simply generates a label for the FeatureBundle
-    //A future refactor will modify the original FeatureBundle to make it match the generated label
+    /*
+    This, in effect, simply generates a label for the FeatureBundle.
+    Maybe make this fail gracefully with result, allowing for best guesses to be 
+    distinguished from perfect matches. 
+    Result, or a similar custom type, could even tell which information is 
+    the original, and which is generated in this translation.
+    */
     pub fn from_feature_bundle(features: FeatureBundle) -> Self {
         let tokens = xsampa::xsampa_split(&features.to_string());
         //let features = FeatureBundle::from_string(&features.to_string());
@@ -409,6 +277,9 @@ impl Segment {
 
     //I really need to make this fail gracefully
     pub fn from_string(str: &str) -> Self {
+        // if str == "#" {
+        //     return Segment::new();
+        // }
         //Consider making this output an Option<Self> type
         let segment_tokens: Vec<String> = xsampa::xsampa_split_segments(str);
 
@@ -424,10 +295,10 @@ impl Segment {
             }
         }
 
-        Segment { tokens, features }
+        ASegment { tokens, features }
     }
 
-    pub fn to_debug_string(self) -> String {
+    pub fn to_debug_string(&self) -> String {
         let mut output = xsampa::xsampa(&self.tokens.concat());
         output.push_str(&format!("\n{}\n", self.features.to_debug_string()));
         output.push_str(&format!("\n Base:      {}", &self.tokens[0]));
@@ -445,27 +316,50 @@ impl Segment {
     }
 
     fn matches_any(&self, fet_arr: &[FeatureBundle]) -> bool {
-        fet_arr.iter().any(|&fet| self.matches(fet))
+        fet_arr.iter().any(|&fet| self.matches_feature(&fet))
     }
     fn matches_all(&self, fet_arr: &[FeatureBundle]) -> bool {
-        fet_arr.iter().all(|&fet| self.matches(fet))
+        fet_arr.iter().all(|&fet| self.matches_feature(&fet))
     }
-    fn matches(&self, fet: FeatureBundle) -> bool {
-        let mut b = true;
 
-        for f in FEATURES {
-            match fet.get(f) {
+    fn matches_token(&self, tok: &TokenString) -> bool {
+        &self.tokens == tok
+    }
+    
+    //This is just returning true :(
+    //This returns true if all nonempty values match
+    fn matches_feature(&self, fet_bundle: &FeatureBundle) -> bool {
+        for fet in FEATURES {
+            match fet_bundle.get(fet) {
                 None => {}
-                Some(bo) => {
-                    b = bo == self.features.get(f).unwrap_or(false);
+                Some(b) => {
+                    if Some(b) != self.features.get(fet) {
+                        return false;
+                    }
                 }
             }
         }
-        b
+        true
     }
+
+    pub fn matches(&self, sc_seg: &SCSegment) -> bool {
+        match sc_seg {
+            SCSegment::TokenSeg(tok) => self.matches_token(tok),
+            SCSegment::FeatureSeg(fet) => self.matches_feature(fet),
+            SCSegment::WordEdge => false,
+        }
+    }
+
 }
 
-impl Default for Segment {
+    pub fn metches(seg: &Segment, sc_seg: &SCSegment) -> bool {
+        match seg {
+            Segment::Seg(s) => s.matches(sc_seg),
+            Segment::WordEdge => false,
+        }
+    }
+
+impl Default for ASegment {
     fn default() -> Self {
         Self::new()
     }
@@ -541,6 +435,24 @@ impl FeatureBundle {
             nasal: None,
             length: None,
         }
+    }
+
+    pub fn print(&self) -> String {
+        let mut result = String::new();
+        result.push('[');
+
+        for fet in FEATURES {
+            match self.get(fet) {
+                Some(b) => if b { 
+                    result.push('+');
+                    result.push_str(fet.to_short_string());
+                    result.push(',');
+                },
+                None => {},
+            }
+        }
+        result.push(']');
+        result
     }
 
     pub fn modify(&mut self, modifier: &SegModif) {

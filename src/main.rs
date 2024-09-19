@@ -1,86 +1,40 @@
 // panini_rust.rs #![allow(dead_code)]
 use panini_rust::{
     segment::{
-        self, 
-        feature_sound_change::{
-            FeaturePhonObject, 
-            FeatureSoundChange
-        }, 
-        Segment, 
-        SegmentString,
-        token_sound_change::{
-            tstring::{
-                TString, 
-                TokenPhonObject,
-            }, 
-            token_sound_change::TokenSoundChange,
-        },
-    }, 
-    xsampa, 
-    util::{
-        self,
-        utilities::concat_by_line,
-    }
+        self, alt_segment::{self, AltFeatureBundle}, feature::Feature, segment_sound_change::{
+            PhonObject,
+            SoundChange
+        }, segment_string::SegmentString, ASegment, FeatureBundle
+    }, util::utilities::concat_by_line, xsampa::{character_translate, xsampa}
 };
 use std::env::args;
 
 
-//fn test<'a, I: Iterator<Item=String>>(args: &mut I) {
-//    let str = &args.next().unwrap();
-//    
-//    println!("{str}");
-//    let unbracketed = util::unbracket_arr(str, ('[',']')).unwrap();
-//
-//    println!("{unbracketed:?}");
-//
-//}
-
 fn test<'a, I: Iterator<Item=String>>(args: &mut I) {
-    let str = &args.next().unwrap();
-     
-    let seg1 = Segment::from_string(str);
-    
-    let seg2 = Segment::from_feature_bundle(seg1.features);
+    let str1 = &args.next().unwrap();
+    let str2 = &args.next().unwrap();
 
-    let result = concat_by_line(&[seg1.to_debug_string(),seg2.to_debug_string()], "|");
+    println!("{str1} {str2}");
+     
+    let seg1 = AltFeatureBundle::from_token(str1);
+    
+    let seg2 = FeatureBundle::from_string(str2);
+
+    let result = concat_by_line(&[seg1.to_string(),seg2.to_debug_string()], "|");
 
     println!("{result}");
 
 }
 
-fn sound_change_main<'a, I: Iterator<Item=String>>(mut args: &mut I) {
-    match args.next().as_deref().unwrap() {
-        "segment" =>{segment_sound_change_main(&mut args);},
-        "token" =>{token_sound_change_main(&mut args)},
-        _ =>{},
-    }
-    
 
-}
-
-fn segment_sound_change_main<'a, I: Iterator<Item=String>>(args: &mut I) {
+fn sound_change<'a, I: Iterator<Item=String>>(args: &mut I) {
     let str_tokens = &args.next().unwrap();
-    
-    let seg_sound_change = FeatureSoundChange::new(str_tokens).unwrap();
-
-    // println!("{:?}", seg_sound_change);
-
+    let sound_change = SoundChange::new(str_tokens).unwrap();
     let mut word = SegmentString::from_string(&args.next().unwrap());
-    let new_word = word.apply_seg_prim(&seg_sound_change);
+    let new_word = word.apply(&sound_change);
+    word.apply_mut(&sound_change);
 
-    word.apply_seg_prim_mut(&seg_sound_change);
-
-    //let x = sound_change.to_string();
-    println!("{} : {}", new_word.to_string(), word.to_string());
-}
-
-fn token_sound_change_main<'a, I: Iterator<Item=String>>(args: &mut I) {
-    let str_tokens = &args.next().unwrap();
-    let tok_sound_change = TokenSoundChange::new(str_tokens).unwrap();
-    let mut word = TString::from_str(&args.next().unwrap());
-    let new_word = word.apply_tok_prim(&tok_sound_change);
-
-    word.apply_tok_prim_mut(&tok_sound_change);
+    // word.apply_tok_prim_mut(&tok_sound_change);
 
     //let x = sound_change.to_string();
     println!("{} : {}", new_word.to_string(), word.to_string());
@@ -99,13 +53,13 @@ fn actual_main() {
         Some("xsampa") => {xsampa_main(&mut args);}
         Some("xpa") => {
             let str = args.next().unwrap();
-            println!("{} : {}", xsampa::xsampa(&str), xsampa::character_translate("|\\|\\"));
+            println!("{} : {}", xsampa(&str), character_translate("|\\|\\"));
         }
         Some("segment") => {println!("{}", segment_main(args.next()));}
         Some("compare") => {compare_main(&mut args);}
         Some("ipa") => {println!("{}", segment::print_xsampa_chart());}
         Some("test") => {test(&mut args);}
-        Some("sc") => {sound_change_main(&mut args);}
+        Some("sc") => {sound_change(&mut args);}
         Some("help") => {println!(" xsampa, segment, help");}
         _ => {eprintln!("ERROR: Invalid argument");}
     }
@@ -176,7 +130,7 @@ fn segment_main(str_arg: Option<String>) -> String {
             "".to_string()
         }
         Some(str) => {
-            let seg = Segment::from_string(&str);
+            let seg = ASegment::from_string(&str);
             //println!("Note: The Feature List does not take into account the features modified by non-segmental diacritics\n");
             seg.to_debug_string()
 

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, iter::Peekable, ops::Deref};
 
-use crate::segment::token_sound_change::tstring::TString;
+// use crate::segment::token::tstring::TString;
 
 use super::utilities::split_on_first;
 
@@ -31,6 +31,8 @@ pub fn split_on<'a, A: Eq+Debug>(arr: &'a [A], token: &[A]) -> Vec<&'a [A]> {
 
 pub trait Splittable<T> {
     fn split_on_first<'a>(self, token: T) -> Option<(T, T)>;
+    // fn split_on_first_general<'a, F>(self, pred: &F) -> Option<(T, T)>
+    // where F: Fn(&Self) -> bool;
 }
 
 // impl<'a, T: Splittable<T>> Splittable<&'a mut T> for &'a mut T {
@@ -40,6 +42,10 @@ pub trait Splittable<T> {
 //     }
 // }
 
+/*
+!!!!!IMPORTANT!!!!!!
+//In Splittable, replace the token with a predicate, (a function pointer &Fn()->bool u dumdum TwT XD)
+*/
 impl<T: Splittable<T>> Splittable<T> for Option<T> {
     fn split_on_first(self, token: T) -> Option<(T, T)> {
         match self {
@@ -47,18 +53,40 @@ impl<T: Splittable<T>> Splittable<T> for Option<T> {
             None => None,
         }
     }
+
+    // fn split_on_first_general<'a, F>(self, pred: &F) -> Option<(T, T)>
+    // where F: Fn(&T) -> bool {
+    //     match self {
+    //         Some(t) => {
+    //             t.split_on_first_general(
+    //                 &|x| pred(x) 
+    //             )
+    //         },
+    //         None => None,
+    //     }
+    // }
 }
 
 impl<'a, T: Eq+Debug> Splittable<&'a [T]> for &'a [T] {
     fn split_on_first(self, token: &[T]) -> Option<(&'a [T], &'a [T])> {
         split_on_first(self, token)
     }
+
+    // fn split_on_first_general<F>(self, pred: &F) -> Option<(&'a [T], &'a [T])>
+    // where F: Fn(&Self) -> bool {
+    //     todo!()
+    // }
 }
 
 impl<'a, T: Eq+Debug> Splittable<&'a [T]> for &'a mut [T] {
     fn split_on_first(self, token: &[T]) -> Option<(&'a [T], &'a [T])> {
         split_on_first(self, token)
     }
+
+    // fn split_on_first_general<F>(self, pred: &F) -> Option<(&'a [T], &'a [T])>
+    // where F: Fn(&Self) -> bool {
+    //     todo!()
+    // }
 }
 
 #[derive(Debug)]

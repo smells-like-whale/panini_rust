@@ -4,7 +4,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::segment::{
         TokenString, 
-        token_sound_change::tstring::TString
+        // token::tstring::TString
     };
 
 pub fn pad_mut_string(str: &mut String, pad_length: usize) {
@@ -97,43 +97,79 @@ pub fn mut_concat_by_line(str: &mut String, str2: &str, seperator: &str) {
     }
 }
 
+/**
+This function splits an array in two at the first instance of the substring token, returning
+None if no such substring exists. 
+If token is &[] then is split by entry.
+split_on_first_gen allows for a generic match function instead of merely equality
+Example: 
+        let x = split_on_first("abcdabcd", "bc", ==);
+        assert_eq!(x, Some(("a","dabcd")));
 
-//This function splits an array in two at the first instance of the substring token, returning
-//None if no such substring exists. 
-//If token is &[] then is split by entry.
-//Example: 
-//         let x = split_on_first("abcdabcd", "bc");
-//         assert_eq!(x, Some(("a","dabcd")));
-//
-//         let y = split_on_first("abcdabcd", "a");
-//         assert_eq!(y, Some(("", "bcdabcd")));
-//
-//         let y = split_on_first("abcdabcd", "");
-//         assert_eq!(y, Some(("a", "bcdabcd")));
-pub fn split_on_first<'a, T: Eq+Debug>(arr: &'a [T], token: &[T]) -> Option<(&'a [T], &'a [T])> {
-    let mut result: Option<(&[T],&[T])> = None;
+        let y = split_on_first("abcdabcd", "a");
+        assert_eq!(y, Some(("", "bcdabcd")));
+
+        let y = split_on_first("abcdabcd", "");
+        assert_eq!(y, Some(("a", "bcdabcd")));
+*/
+pub fn split_on_first_gen<'a, T: Debug, S: Debug, F>(
+    arr: &'a [T], 
+    token: &[S], 
+    matches: &F) -> Option<(&'a [T], &'a [T], &'a [T])> 
+    where F: Fn(&T,&S) -> bool { // This can only be simplified if we iterate on slices of arr, a slightly annoying task to define on the custom types this will be used for
+    
+    let mut result: Option<(&[T],&[T],&[T])> = None;
     if token.is_empty() {
         match arr.get(0) {
-            Some(_) => return Some((&arr[0..1],&arr[1..])),
+            Some(_) => return Some((&arr[0..1], &[], &arr[1..])),
             None => return None,
         }
     }
 
     for i in 0..arr.len() {
-        if arr[i] == token[0] {
-            match arr[i..].strip_prefix(token) {
-                Some(strip) => {
-                    result = Some((&arr[0..i], strip));
+        if matches(&arr[i], &token[0]) {
+            match prefix_strip(&arr[i..], token, matches) {
+                Some((pivot, tail)) => {
+                    result = Some((&arr[0..i], pivot, tail));
                     break;
                 },
-                None => {result = Some((arr,&[]));},
+                None => {result = None}, //Some((arr,&[]));},
             }
         }
     }
     result
 }
 
+fn prefix_strip<'a, T, S, F>(arr: &'a [T], token: &[S], matches: &F) -> Option<(&'a [T], &'a [T])>
+    where F: Fn(&T, &S) -> bool {
+    
+    for i in 0..token.len() {
+        if !matches(arr.get(i)?, &token[i]) {
+            return None;
+        }
+    }
+    let split = arr.split_at(token.len());
+    Some(split)
+}
 
+/**
+This function splits an array in two at the first instance of the substring token, returning
+None if no such substring exists. 
+If token is &[] then is split by entry.
+Example: 
+        let x = split_on_first("abcdabcd", "bc");
+        assert_eq!(x, Some(("a","dabcd")));
+
+        let y = split_on_first("abcdabcd", "a");
+        assert_eq!(y, Some(("", "bcdabcd")));
+
+        let y = split_on_first("abcdabcd", "");
+        assert_eq!(y, Some(("a", "bcdabcd")));
+*/
+pub fn split_on_first<'a, T: Eq+Debug>(arr: &'a [T], token: &[T]) -> Option<(&'a [T], &'a [T])> {
+    let (prefix, _pivot, tail) = split_on_first_gen(arr, token, &|x, y| x==y)?;
+    Some((prefix, tail))
+}
 
 
 
@@ -273,13 +309,15 @@ pub fn get_or<T: Eq+Clone>(vec: &[T], index: isize, fallback: T) -> T {
     }
 }
 
-//This checks if tok[] matches the beginning of arr[].
-//E.g.: 
-// let arr = [1,2,3,4,5];
-// let tok1 = [1,2,3];
-// let tok2 = [2,3];
-// assert!(match_postfix(arr,tok1));
-// assert!(!match_postfix(arr,tok2));
+/*
+This checks if tok[] matches the beginning of arr[].
+E.g.: 
+let arr = [1,2,3,4,5];
+let tok1 = [1,2,3];
+let tok2 = [2,3];
+assert!(match_postfix(arr,tok1));
+assert!(!match_postfix(arr,tok2));
+*/
 pub fn match_prefix<A: Eq>(arr: &[A], tok: &[A]) -> bool {
     if tok.len() > arr.len() {return false;}
     for i in 0..tok.len()  {
@@ -288,13 +326,15 @@ pub fn match_prefix<A: Eq>(arr: &[A], tok: &[A]) -> bool {
     true
 }
 
-//This checks if tok[] matches the end of arr[].
-//E.g.: 
-// let arr = [1,2,3,4,5];
-// let tok1 = [3,4,5];
-// let tok2 = [3,5];
-// assert!(match_postfix(arr,tok1));
-// assert!(!match_postfix(arr,tok2));
+/*
+This checks if tok[] matches the end of arr[].
+E.g.: 
+let arr = [1,2,3,4,5];
+let tok1 = [3,4,5];
+let tok2 = [3,5];
+assert!(match_postfix(arr,tok1));
+assert!(!match_postfix(arr,tok2));
+*/
 pub fn match_postfix<A: Eq+Debug>(arr: &[A], tok: &[A]) -> bool {
     if tok.len() > arr.len() {return false;}
     
@@ -305,24 +345,3 @@ pub fn match_postfix<A: Eq+Debug>(arr: &[A], tok: &[A]) -> bool {
     }
     true
 }
-
-pub fn after_matches(tstr: &[TokenString], toks: &[TString]) -> bool {
-    if toks.is_empty() {
-        true
-    } else {
-        toks.iter().any(
-            |tok| match_prefix(&tstr, &tok.tokens())
-        )
-    }
-}
-
-pub fn before_matches(tstr: &[TokenString], toks: &[TString]) -> bool {
-    if toks.is_empty() {
-        true
-    } else {
-        toks.iter().any(
-            |tok| match_postfix(&tstr, tok.tokens())
-        )
-    }
-}
-

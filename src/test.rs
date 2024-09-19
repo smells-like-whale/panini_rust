@@ -1,16 +1,18 @@
-// panini_rust.rs
-#![allow(dead_code)]
 use itertools::Itertools;
 
 use crate::{
-    segment::segment_sound_change::sound_change_utilities, 
-    segment::token_sound_change::{
-        token_sound_change::TokenSoundChange,
-        tstring::{
-            TString, 
-            TokenPhonObject
-        }, 
-    }, util::split_on::split_on
+    segment::{
+        alt_segment::{AltFeature, AltFeatureBundle}, feature::parse_featurebundle, segment_sound_change::{
+            sound_change_utilities::{
+                self, 
+                parse_scstring
+            }, PhonObject, 
+            SCSegment, 
+            SCString, 
+            SoundChange
+        }, segment_string::SegmentString, ASegment
+    }, 
+    util::split_on::split_on
 };
 use super::{
         xsampa::{
@@ -30,69 +32,52 @@ use std::env::args;
 
 
 
-const TES1: &str = "i->I/__";
-const TES2: &str = "u->U/__";
-const TES3: &str = "e->E/__";
-const TES4: &str = "o->O/__";
-const TES5: &str = "i:->i/__";
-const TES6: &str = "u:->u/__";
-const TES7: &str = "e:->e/__";
-const TES8: &str = "o:->o/__";
-const TES9: &str = "a:->a/__";
-const TES_SC: &str = "k->c/__{i,e,I,E,i:,e:}";
-const TES10: &str = "I->e/__";
-const TES11: &str = "U->o/__";
-const TES12: &str = "i->/__#";
-const TES13: &str = "u->/__#";
-const TES14: &str = "e->/__#";
-const TES15: &str = "o->/__#";
-const TES16: &str = "E->/__#";
-const TES17: &str = "O->/__#";
-const TES18: &str = "a->@/__#";
-const TES19: &str = "c->ts/__";
+// const TES1: &str = "[+syl,+dors,-length]->[-tense]/__";
+// const TES2: &str = "[+syl,+length]->[-length]/__";
+// const TES3: &str = "k->c/__[+dors,+front]";
+// const TES4: &str = "[+dors,+syl,+high,-tense]->[+tense,-high]/__";
+// const TES5: &str = "[+syl,+dors,-low]->/__#";
+// const TES6: &str = "a->@/__#";
+// const TES7: &str = "c->t_s/__";
 
-const TES_STR: &str = "kikero:";
+const TES_STR: &str = "kikjaro:";
 
 const TES_LIS: &[&str] = &[
-                            TES1,
-                            TES2,
-                            TES3,
-                            TES4,
-                            TES5,
-                            TES6,
-                            TES7,
-                            TES8,
-                            TES9,
-                            TES_SC,
-                            TES10,
-                            TES11,
-                            TES12,
-                            TES13,
-                            TES14,
-                            TES15,
-                            TES16,
-                            TES17,
-                            TES18,
-                            TES19,
+                            "[+syl,+dors,-length, -low]->[-tense]/__", //Short vowel laxing
+
+                            "[+syl,+length]->[-length]/__", //Loss of vowel length
+
+                            "k->c/__[+dors,+front]", //Palatalization of /k/
+
+                            "[+dors,+syl,+high,-tense]->[+tense,-high]/__", //Lowering of short lax hight vowels. E.g. : I -> e and U -> o
+
+                            "[+syl,+dors,-low]->/__#", //Loss of word final non-low vowels
+
+                            "a->@/__#",//Reduction of word final /a/
+
+                            "c->t_s/__",//Affrication of palatalized /k/
                         ];
 
 #[test]
 fn parse_sound_change_test() {
     println!("---Start parse_sound_change_test---");
-    let tsc = TokenSoundChange::new_vec(TES_LIS).unwrap();
+    let tsc = SoundChange::new_vec(TES_LIS).unwrap();
     println!("test 1");
-    let mut word = TString::from_str(TES_STR);
+    let mut word = SegmentString::from_string(TES_STR);
     println!("{word:?}");
     println!("test 2");
-    let res = word.apply_tok_prim(&tsc[0]);
-    let scs = TokenSoundChange::new_vec(TES_LIS).unwrap();
-    
+    // let res = word.apply(&tsc[0]);
+    let scs = SoundChange::new_vec(TES_LIS).unwrap();
+   
     println!(" Input: {}", word.to_string());
     for sc in scs {
-        word.apply_tok_prim_mut(&sc);
+        // println!("Input: {:?}", word.to_string());
+        println!("SoundChange: {:?}", sc.to_string());
+        word.apply_mut(&sc);
+        println!("Word: {:?}", word.to_string());
     }
-    let res_str = res.to_string();
-    //println!("Output: {}", res_str);
+    // let res_str = res.to_string();
+    // println!("Output: {}", res_str);
     println!("Output: {}", &word.to_string());
    
     println!("---End parse_sound_change_test---");
@@ -100,13 +85,40 @@ fn parse_sound_change_test() {
 
 #[test]
 fn sc_string_iter() {
-    let raw_string = "t[+voi]p";
+    let raw_string = "t_h[+voi]p";
     
-    let segmented_raw_string = sound_change_utilities::segment_raw_scstring(raw_string);
+    let scstring = sound_change_utilities::parse_scstring(raw_string);
 
-    println!("{segmented_raw_string:?}");
+    println!("{scstring:?}");
 }
 
+#[test]
+fn segment_split() {
+    let seg_str = "#awt_hjakr@#";
+    let word = SegmentString::from_string(seg_str);
+    println!("{:?}", word.to_debug_string());
+
+    let sc_str = "[-cont]->[+cont,+voi]/[+voi]__[+voi]";
+    let sc_str2 = "->?/#__[+voi,+syl]"; //Cannot currently change the length of a subsegment
+    let sc = SoundChange::new(sc_str2).unwrap();
+
+    let new_word = word.apply(&sc);
+    
+    let scstr1_str = "[+round][-cont]";
+    let scstr1 = parse_scstring(scstr1_str).unwrap();
+
+    // let fet = SCSegment::FeatureSeg(prs_fet("[+voice, -labial]").unwrap());
+    // let seg = Segment::from_string("p");
+    // println!("{:?}", seg.matches(&fet));
+
+    let split =  match word.split_on_first(&scstr1) {
+        Some((x,y,z)) => Some((x.to_string(), y.to_string(), z.to_string())),
+        None => None,
+    };
+
+    println!("{:?}", new_word.to_string());
+
+}
 
 #[test] 
 fn split_on_test() {
@@ -130,23 +142,11 @@ fn split_on_test() {
 }
 
 #[test]
-fn get_or_test() {
-    let vec = vec![1,2,3];
+fn alt_segment() {
+    let mut altfet = AltFeatureBundle::new();
+    altfet.set(AltFeature::Labial, true);
 
-    for i in -1..4 {
-        println!("{}",super::util::utilities::get_or(&vec,i,0));
-    }
-}
-
-#[test]
-fn b() {
-    let str = xsampa_split_segments("kikero:");
-    let spl_str = split_on(&str, &["k".to_string()]);
-    let (_, res) = split_on_first(&str, &["k".to_string()]).unwrap();
-    let (fst, rest) = split_on_first(res, &["k".to_string()]).unwrap();
-    println!("({:?}, {:?})", fst, rest);
-    println!("{:?}", str);
-    println!("{:?}", spl_str);
+    println!("{}", altfet.to_string());
 }
 
 #[test]
