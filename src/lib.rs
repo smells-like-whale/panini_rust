@@ -1,9 +1,7 @@
-pub mod segment;
 pub mod generate;
-pub mod util;
-pub mod xsampa;
+pub mod segment;
+pub mod syllable;
 #[cfg(test)]
 pub mod test;
-
-
-
+pub mod util;
+pub mod xsampa;

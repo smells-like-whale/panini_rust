@@ -1,59 +1,119 @@
 use itertools::Itertools;
 
-use crate::segment::feature::parse_featurebundle;
-use crate::segment::segment_string::SegmentString;
-use crate::segment::{self, FeatureBundle};
-use crate::xsampa::{is_initial, xsampa_split};
+use crate::{
+    segment::{
+        feature::{feature_table::FeatureTable, FeatureBundle, FeatureIndex},
+        segment_sound_change::SCString,
+        segment_string::SegmentStringShell,
+    },
+    util::{
+        self,
+        utilities::{self, unbracket_arr},
+    },
+    xsampa::{is_initial, xsampa_split, SegmentIter},
+};
 
-use crate::segment::segment_sound_change::SCString;
-
-use super::{SCSegment, SoundChange};
+use super::{SCSegAn, SCSegment, SoundChangeShell};
 
 pub fn segment_raw_scstring(str: &str) -> Option<Vec<String>> {
-    let sciter = SegmentIter::new(str);
-
-    Some(sciter.collect_vec())
+    let sc_iter = SegmentIter::new(str);
+    let tmp = sc_iter.collect_vec();
+    // println!("tmp == {tmp:?}");
+    Some(tmp)
 }
 
-pub fn parse_segmented_scstring(str_arr: &[String]) -> Option<SCString> {
+pub fn parse_scstring_annotated<F: FeatureBundle>(str_arr: &[String]) -> Option<SCString<F>> {
     let mut segments = Vec::new();
+    let mut block_context = false;
+    let mut arr = str_arr;
 
-    for str in str_arr {
-        if str == "#" {
-            segments.push(SCSegment::WordEdge);
-        } else if str.starts_with('[') {
-            segments.push(SCSegment::FeatureSeg(parse_featurebundle(str)?));
+    match str_arr.get(0) {
+        Some(s) => {
+            if s == "**" {
+                block_context = true;
+                arr = &arr[1..];
+            }
+        }
+        None => {}
+    }
+
+    for str in arr {
+        if str.starts_with('(') {
+            let str_s = str.strip_suffix("_s");
+            match str_s {
+                Some(str) => {
+                    let str_vec = unbracket_arr(str, ("(", ")"))?;
+                    let mut scseg_vec = Vec::new();
+
+                    for str in str_vec {
+                        println!("{str}");
+                        let tmp = parse_segmented_scstring(&str)?;
+                        scseg_vec.push(tmp);
+                    }
+
+                    segments.push(SCSegAn::Skip(scseg_vec));
+                }
+                None => {
+                    let str_vec = unbracket_arr(str, ("(", ")"))?;
+                    let mut scseg_vec = Vec::new();
+
+                    for str in str_vec {
+                        println!("{str}");
+                        let tmp = parse_segmented_scstring(&str)?;
+                        scseg_vec.push(tmp);
+                    }
+
+                    segments.push(SCSegAn::SCMultiSeg(scseg_vec));
+                }
+            }
         } else {
-            segments.push(SCSegment::TokenSeg(xsampa_split(str)));
+            segments.push(SCSegAn::SCSeg(parse_segmented_scstring(str)?));
         }
     }
 
-    Some(SCString { segments }) 
+    Some(SCString {
+        segments,
+        block_context,
+    })
 }
 
-pub fn parse_scstring(str: &str) -> Option<SCString> {
+pub fn parse_segmented_scstring<F: FeatureBundle>(str: &str) -> Option<SCSegment<F>> {
+    if str == "#" {
+        Some(SCSegment::WordEdge)
+    } else if str.starts_with('[') {
+        Some(SCSegment::FeatureSeg(F::Index::parse(str)?))
+    } else if str.starts_with('#') {
+        let unwr_str = unbracket_arr(str, ("#{", "}"))?.concat();
+        if unwr_str.starts_with('[') {
+            Some(SCSegment::FeatureSeg(F::Index::parse(&unwr_str)?))
+        } else {
+            Some(SCSegment::TokenSeg(xsampa_split(&unwr_str)))
+        }
+    } else {
+        Some(SCSegment::TokenSeg(xsampa_split(str)))
+    }
+}
+
+pub fn parse_scstring<F: FeatureBundle>(str: &str) -> Option<SCString<F>> {
     let segmented_str = segment_raw_scstring(str)?;
-    println!("{segmented_str:?}");
-    parse_segmented_scstring(&segmented_str)
+    // println!("{segmented_str:?}");
+    parse_scstring_annotated(&segmented_str)
 }
 
 #[derive(Clone, Copy)]
 pub struct SCStringIter<'a> {
-    string: &'a str
+    string: &'a str,
 }
-impl<'a>  SCStringIter<'a> { 
-
-    pub fn new(string: &'a str) ->  SCStringIter<'a> {
-         SCStringIter {
-            string
-        }
+impl<'a> SCStringIter<'a> {
+    pub fn new(string: &'a str) -> SCStringIter<'a> {
+        SCStringIter { string }
     }
 
     fn peek(&self) -> Option<&'a str> {
         if self.string.is_empty() {
             None
         } else {
-            let (pop,_) = token_pop(self.string); 
+            let (pop, _) = token_pop(self.string);
             Some(pop)
         }
     }
@@ -64,26 +124,29 @@ impl<'a>  SCStringIter<'a> {
 
     pub fn is_empty(&self) -> bool {
         match self.peek() {
-            Some(_) => false, 
+            Some(_) => false,
             None => true,
         }
     }
-
 }
-pub fn segment_pop<'a>(str: &'a str) -> (String,String) {
+pub fn segment_pop<'a>(str: &'a str) -> (String, String) {
     let mut pop_raw: Vec<&str> = Vec::new();
 
-    let mut token_iter = SCStringIter::new(str); 
-    
+    let mut token_iter = SCStringIter::new(str);
+
     let first_pop_wrapped = token_iter.next();
 
     match first_pop_wrapped {
-        None => {return ("".to_string(),"".to_string());},
-        Some(_s) => {pop_raw.push(_s);},
-    } 
+        None => {
+            return ("".to_string(), "".to_string());
+        }
+        Some(_s) => {
+            pop_raw.push(_s);
+        }
+    }
 
     for pop in token_iter {
-        if ['_',':'].contains(&pop.chars().nth(0).unwrap()) {
+        if ['_', ':'].contains(&pop.chars().nth(0).unwrap()) {
             token_iter.next();
             pop_raw.push(pop);
         } else {
@@ -98,18 +161,18 @@ fn xsampa_normalize(s: &str) -> &str {
     match s {
         "=" => "_=",
         "~" => "_~",
-        _   => s,
+        _ => s,
     }
 }
 
 #[derive(Debug)]
-pub struct SCIter {
-    sc: SoundChange,
-    seg_string: SegmentString,
+pub struct SCIter<F: FeatureBundle> {
+    sc: SoundChangeShell<F>,
+    seg_string: SegmentStringShell<F>,
 }
 
-impl Iterator for SCIter {
-    type Item = SegmentString;
+impl<F: FeatureBundle> Iterator for SCIter<F> {
+    type Item = SegmentStringShell<F>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (next, _pivot, rest) = self.seg_string.split_on_first(&self.sc.from)?;
@@ -118,72 +181,69 @@ impl Iterator for SCIter {
     }
 }
 
+// #[derive(Debug)]
+// pub struct SegmentIter {
+//     string: String
+// }
+//
+// impl SegmentIter {
+//     pub fn new(string: &str) -> SegmentIter {
+//         SegmentIter { string: string.to_string() }
+//     }
+//
+//     fn peek(&self) -> Option<String> {
+//         if self.string.is_empty() {
+//             None
+//         } else {
+//             let (pop,_) = segment_pop(&self.string);
+//             Some(pop)
+//         }
+//     }
+//
+//     pub fn is_empty(&self) -> bool {
+//         match self.peek() {
+//             Some(_) => false,
+//             None => true,
+//         }
+//     }
+// }
+//
+// impl Iterator for SegmentIter {
+//     type Item = String;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.string.is_empty() {
+//             None
+//         } else {
+//             let (pop,rest) = segment_pop(&self.string);
+//             self.string = rest;
+//             Some(pop)
+//         }
+//     }
+// }
 
-
-#[derive(Debug)]
-pub struct SegmentIter {
-    string: String
-}
-
-impl SegmentIter {
-    pub fn new(string: &str) -> SegmentIter {
-        SegmentIter { string: string.to_string() }
-    }
-
-    fn peek(&self) -> Option<String> {
-        if self.string.is_empty() {
-            None
-        } else {
-            let (pop,_) = segment_pop(&self.string); 
-            Some(pop)
-        }
-    }
-    
-    pub fn is_empty(&self) -> bool {
-        match self.peek() {
-            Some(_) => false, 
-            None => true,
-        }
-    }
-}
-
-impl Iterator for SegmentIter {
-    type Item = String;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.string.is_empty() {
-            None
-        } else {
-            let (pop,rest) = segment_pop(&self.string);
-            self.string = rest;
-            Some(pop)
-        }
-    }
-}
-
-impl<'a> Iterator for  SCStringIter<'a> {
-    type Item = &'a str; 
+impl<'a> Iterator for SCStringIter<'a> {
+    type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.string.is_empty() {
             None
         } else {
-            let (pop,rest) = token_pop(self.string);
+            let (pop, rest) = token_pop(self.string);
             self.string = rest;
             Some(xsampa_normalize(pop))
-        } 
+        }
     }
-
 }
 
-fn arr_find<T: Eq+PartialEq>(arr: &[T], elem: T) -> Option<usize> {
-    for i in 0..arr.len() {
-        if arr[i] == elem {
-            return Some(i+1);
-        } 
-    }
-    None
-}
+// fn arr_find<T: Eq+PartialEq>(arr: &[T], elem: T) -> Option<usize> {
+//     for i in 0..arr.len() {
+//         if arr[i] == elem {
+//             return Some(i+1);
+//         }
+//     }
+//     None
+// }
 
 fn token_pop(_s: &str) -> (&str, &str) {
     let s: Vec<char> = _s.chars().collect();
@@ -193,28 +253,34 @@ fn token_pop(_s: &str) -> (&str, &str) {
     if length == 0 {
         return _s.split_at(start);
     }
-    
+
     if s[start] == '#' {
         return _s.split_at(1);
     }
 
     if s[start] == '[' {
-        let end = s.iter().position(|&x| x==']');//arr_find(&s,']');
+        let end = s.iter().position(|&x| x == ']'); //arr_find(&s,']');
         if end.is_some() {
-            return _s.split_at(end.unwrap()+1);
-        } 
+            return _s.split_at(end.unwrap() + 1);
+        }
+    }
+    if s[start] == '#' || s.get(start + 1) == Some(&'{') {
+        let end = s.iter().position(|&x| x == '}'); //arr_find(&s,']');
+        if end.is_some() {
+            return _s.split_at(end.unwrap() + 1);
+        }
     }
 
     if is_initial(s[start]) {
-        start+=1;
-        
+        start += 1;
+
         if length - start == 0 || is_initial(s[start]) {
             return _s.split_at(start);
         }
 
         match s[start] {
             '\\' => {
-                start+=1;
+                start += 1;
 
                 if length - start == 0 {
                     return _s.split_at(start);
@@ -222,70 +288,69 @@ fn token_pop(_s: &str) -> (&str, &str) {
 
                 match s[start] {
                     '`' => {
-                        start+=1;
-                    },
+                        start += 1;
+                    }
                     '|' => {
-                        start+=1;
-                        if length - start == 0 || is_initial(s[start]){
+                        start += 1;
+                        if length - start == 0 || is_initial(s[start]) {
                             return _s.split_at(start);
                         }
-                        start+=1;
-                    },
-                    _   => {},
+                        start += 1;
+                    }
+                    _ => {}
                 }
-            },
+            }
 
-            '`'  => {
-                start+=1;
-            },
-            '_'  => {
-                start+=1;
+            '`' => {
+                start += 1;
+            }
+            '_' => {
+                start += 1;
                 if length - start > 0 {
                     match s[start] {
                         '<' => {
-                            start+=1;
-                        },
+                            start += 1;
+                        }
                         's' | 'z' => {
-                            start+=1;
+                            start += 1;
                             if s.get(start) == Some(&'\\') {
-                                start+=1;
+                                start += 1;
                             }
-                        },
+                        }
 
                         'S' | 'Z' => {
-                            start+=1;
-                        },
+                            start += 1;
+                        }
 
                         _ => {
-                            start-=1;
-                        },
+                            start -= 1;
+                        }
                     }
                 } else {
-                    start-=1;
+                    start -= 1;
                     return _s.split_at(start);
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     } else if s[start] == '_' {
-        start+=1;
+        start += 1;
         if length - start == 0 {
             return _s.split_at(start);
         }
-        start+=1;
+        start += 1;
         if length - start == 0 {
             return _s.split_at(start);
         }
 
         if s[start] == '\\' {
-            start+=1;
+            start += 1;
         }
     } else {
-        start+=1;
-        let (_,tail) = _s.split_at(start);
-        return ("<?>",tail);
+        start += 1;
+        let (_, tail) = _s.split_at(start);
+        return ("<?>", tail);
     }
 
     _s.split_at(start)
-
 }

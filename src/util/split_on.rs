@@ -4,8 +4,7 @@ use std::{fmt::Debug, iter::Peekable, ops::Deref};
 
 use super::utilities::split_on_first;
 
-
-pub fn split_on<'a, A: Eq+Debug>(arr: &'a [A], token: &[A]) -> Vec<&'a [A]> {
+pub fn split_on<'a, A: Eq + Debug>(arr: &'a [A], token: &[A]) -> Vec<&'a [A]> {
     let mut result = Vec::new();
 
     let mut tmp = arr;
@@ -15,15 +14,15 @@ pub fn split_on<'a, A: Eq+Debug>(arr: &'a [A], token: &[A]) -> Vec<&'a [A]> {
         match split_on_first {
             None => {
                 //println!("I reached the end on: {:?}", tmp);
-                result.push(tmp); 
+                result.push(tmp);
                 break;
-            },
-            Some((pop,rest)) => {
+            }
+            Some((pop, rest)) => {
                 result.push(pop);
                 tmp = rest; // This tmp is not the same as the tmp outside the loop, a problem
-                // I need to look at
+                            // I need to look at
             }
-        } 
+        }
     }
 
     result
@@ -59,7 +58,7 @@ impl<T: Splittable<T>> Splittable<T> for Option<T> {
     //     match self {
     //         Some(t) => {
     //             t.split_on_first_general(
-    //                 &|x| pred(x) 
+    //                 &|x| pred(x)
     //             )
     //         },
     //         None => None,
@@ -67,7 +66,7 @@ impl<T: Splittable<T>> Splittable<T> for Option<T> {
     // }
 }
 
-impl<'a, T: Eq+Debug> Splittable<&'a [T]> for &'a [T] {
+impl<'a, T: Eq + Debug> Splittable<&'a [T]> for &'a [T] {
     fn split_on_first(self, token: &[T]) -> Option<(&'a [T], &'a [T])> {
         split_on_first(self, token)
     }
@@ -78,7 +77,7 @@ impl<'a, T: Eq+Debug> Splittable<&'a [T]> for &'a [T] {
     // }
 }
 
-impl<'a, T: Eq+Debug> Splittable<&'a [T]> for &'a mut [T] {
+impl<'a, T: Eq + Debug> Splittable<&'a [T]> for &'a mut [T] {
     fn split_on_first(self, token: &[T]) -> Option<(&'a [T], &'a [T])> {
         split_on_first(self, token)
     }
@@ -90,18 +89,17 @@ impl<'a, T: Eq+Debug> Splittable<&'a [T]> for &'a mut [T] {
 }
 
 #[derive(Debug)]
-pub struct SplitOn<T: Eq+Debug+Splittable<T>> {
-    subobject : T,
+pub struct SplitOn<T: Eq + Debug + Splittable<T>> {
+    subobject: T,
     //next: Option<&'a T>,
     object: T,
 }
 
-impl<T: Eq+Copy+Debug+Splittable<T>> SplitOn<T> {
-
+impl<T: Eq + Copy + Debug + Splittable<T>> SplitOn<T> {
     pub fn new(arr: T, token: T) -> Self {
         SplitOn {
-            object: arr, 
-            subobject: token, 
+            object: arr,
+            subobject: token,
             //next: None
         }
     }
@@ -109,10 +107,10 @@ impl<T: Eq+Copy+Debug+Splittable<T>> SplitOn<T> {
     //pub fn is_empty(&self) -> bool {
     //    self.object == T::default()
     //}
-    
+
     pub fn peek(&self) -> Option<T> {
-        let (pre,_post) = self.object.split_on_first(self.subobject)?;
-        Some(pre) 
+        let (pre, _post) = self.object.split_on_first(self.subobject)?;
+        Some(pre)
     }
 
     //pub(crate) fn map(&self, to_vec: impl Fn(_) -> TString) -> _ {
@@ -120,15 +118,15 @@ impl<T: Eq+Copy+Debug+Splittable<T>> SplitOn<T> {
     //}
 }
 
-impl<'a, T: Eq+Debug> Iterator for SplitOn<&'a [T]> {
+impl<'a, T: Eq + Debug> Iterator for SplitOn<&'a [T]> {
     type Item = &'a [T];
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         match split_on_first(self.object, self.subobject) {
             Some((pre, post)) => {
                 self.object = post;
                 Some(pre)
-            },
+            }
             None => {
                 if self.object.is_empty() {
                     None
@@ -137,7 +135,7 @@ impl<'a, T: Eq+Debug> Iterator for SplitOn<&'a [T]> {
                     self.object = &[];
                     result
                 }
-            },
+            }
         }
     }
 
@@ -157,14 +155,13 @@ impl<'a, T: Eq+Debug> Iterator for SplitOn<&'a [T]> {
 //     }
 // }
 
-
- // impl<'a, T: Splittable<T>> Iterator for SplitOn<&'a T> 
- // where   T: Eq + Deref + Debug + Sized + Copy, <T as Deref>::Target: Sized + Copy {
- //     type Item = &'a <T as Deref>::Target;
- //
- //    fn next(&mut self) -> Option<Self::Item> {
- //        let (next, rest) = self.object.split_on_first(self.subobject)?;
- //        self.object = rest;
- //        Some(next)
- //    }
- // }
+// impl<'a, T: Splittable<T>> Iterator for SplitOn<&'a T>
+// where   T: Eq + Deref + Debug + Sized + Copy, <T as Deref>::Target: Sized + Copy {
+//     type Item = &'a <T as Deref>::Target;
+//
+//    fn next(&mut self) -> Option<Self::Item> {
+//        let (next, rest) = self.object.split_on_first(self.subobject)?;
+//        self.object = rest;
+//        Some(next)
+//    }
+// }

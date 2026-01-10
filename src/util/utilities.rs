@@ -1,14 +1,21 @@
-use std::{fmt::Debug, iter::Peekable, ops::Deref};
+use std::{
+    fmt::{Debug, Display},
+    iter::Peekable,
+    ops::Deref,
+};
 
+use itertools::Itertools;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::segment::{
-        TokenString, 
-        // token::tstring::TString
-    };
+    TokenString,
+    // token::tstring::TString
+};
+
+
 
 pub fn pad_mut_string(str: &mut String, pad_length: usize) {
-    let str_len = str.graphemes(true).count();//use graphemes(true) from unicode-segmentation
+    let str_len = str.graphemes(true).count(); //use graphemes(true) from unicode-segmentation
     if str_len <= pad_length {
         let diff = pad_length - str_len;
         for _ in 0..diff {
@@ -20,18 +27,23 @@ pub fn pad_mut_string(str: &mut String, pad_length: usize) {
 }
 
 pub fn concat_by_line(str_arr: &[String], seperator: &str) -> String {
-    let mut str_pad_width:Vec<usize> = Vec::new(); //this will hold the max line width of the string in str_arr of the same index
+    let mut str_pad_width: Vec<usize> = Vec::new(); //this will hold the max line width of the string in str_arr of the same index
     let mut lines_column_arr: Vec<Vec<String>> = Vec::new();
-    
+    let mut str_pad_height: usize = str_arr
+        .iter()
+        .map(|str| str.lines().try_len().unwrap_or(0))
+        .max()
+        .unwrap_or(0);
+
     //First calculate the width of each column and accumulate them into a Vec<usize>
     for str in str_arr {
         let str_lines = str.lines();
         let max = str_lines.map(|s| s.graphemes(true).count()).max();
         str_pad_width.push(max.unwrap_or(0));
     }
-    
+
     //Now for each column, split into lines and pad them
-    //then accumulate the lists of lines 
+    //then accumulate the lists of lines
     for i in 0..str_arr.len() {
         let mut line_vec: Vec<String> = Vec::new();
         for line in str_arr[i].lines() {
@@ -40,19 +52,19 @@ pub fn concat_by_line(str_arr: &[String], seperator: &str) -> String {
             line_vec.push(tmp);
         }
         lines_column_arr.push(line_vec);
-    } 
-    
+    }
+
     //The length of the larget array, aka the number of lines in the final output
-    let max = lines_column_arr.iter().map(|x| x.len()).max().unwrap_or(0); 
-    
+    let max = lines_column_arr.iter().map(|x| x.len()).max().unwrap_or(0);
+
     //Pad the shorter arrays with extra lines of the proper width
     for j in 0..lines_column_arr.len() {
         let diff = max - lines_column_arr[j].len();
         (0..diff).for_each(|_i| {
-            lines_column_arr[j].push("".repeat(str_pad_width[j]));
+            lines_column_arr[j].push(" ".repeat(str_pad_width[j]));
         });
     }
-    
+
     //Accumulate the lines horizontally
     let mut lines = Vec::new();
     for i in 0..max {
@@ -60,23 +72,22 @@ pub fn concat_by_line(str_arr: &[String], seperator: &str) -> String {
         for j in 0..lines_column_arr.len() {
             lines[i].push_str(&format!("{}{seperator}", lines_column_arr[j][i]));
         }
-        
     }
     //Accumulate the resulting lines
-    let mut output = String::new(); 
+    let mut output = String::new();
     for mut line in lines {
         line.push('\n');
         output.push_str(&line);
     }
 
-    output // not yet used
+    output
 }
 
 pub fn mut_concat_by_line(str: &mut String, str2: &str, seperator: &str) {
     let str_lines = str.lines().zip(str2.lines());
-    
-    let mut pad_length = (0,0);
-    
+
+    let mut pad_length = (0, 0);
+
     for s in str.lines() {
         if pad_length.0 < s.len() {
             pad_length.0 = s.len();
@@ -88,21 +99,26 @@ pub fn mut_concat_by_line(str: &mut String, str2: &str, seperator: &str) {
         }
     }
     let mut output = String::new();
-    for (s1,s2) in str_lines {
+    for (s1, s2) in str_lines {
         let mut z1 = s1.to_string();
         pad_mut_string(&mut z1, pad_length.0);
         let mut z2 = s2.to_string();
         pad_mut_string(&mut z2, pad_length.1);
-        output.push_str(&format!("{sep} {} {sep} {} {sep}\n", z1, z2, sep=seperator));
+        output.push_str(&format!(
+            "{sep} {} {sep} {} {sep}\n",
+            z1,
+            z2,
+            sep = seperator
+        ));
     }
 }
 
-/**
+/*
 This function splits an array in two at the first instance of the substring token, returning
-None if no such substring exists. 
+None if no such substring exists.
 If token is &[] then is split by entry.
 split_on_first_gen allows for a generic match function instead of merely equality
-Example: 
+Example:
         let x = split_on_first("abcdabcd", "bc", ==);
         assert_eq!(x, Some(("a","dabcd")));
 
@@ -113,12 +129,16 @@ Example:
         assert_eq!(y, Some(("a", "bcdabcd")));
 */
 pub fn split_on_first_gen<'a, T: Debug, S: Debug, F>(
-    arr: &'a [T], 
-    token: &[S], 
-    matches: &F) -> Option<(&'a [T], &'a [T], &'a [T])> 
-    where F: Fn(&T,&S) -> bool { // This can only be simplified if we iterate on slices of arr, a slightly annoying task to define on the custom types this will be used for
-    
-    let mut result: Option<(&[T],&[T],&[T])> = None;
+    arr: &'a [T],
+    token: &[S],
+    matches: &F,
+) -> Option<(&'a [T], &'a [T], &'a [T])>
+where
+    F: Fn(&T, &S) -> bool,
+{
+    // This can only be simplified if we iterate on slices of arr, a slightly annoying task to define on the custom types this will be used for
+
+    let mut result: Option<(&[T], &[T], &[T])> = None;
     if token.is_empty() {
         match arr.get(0) {
             Some(_) => return Some((&arr[0..1], &[], &arr[1..])),
@@ -132,8 +152,8 @@ pub fn split_on_first_gen<'a, T: Debug, S: Debug, F>(
                 Some((pivot, tail)) => {
                     result = Some((&arr[0..i], pivot, tail));
                     break;
-                },
-                None => {result = None}, //Some((arr,&[]));},
+                }
+                None => result = None, //Some((arr,&[]));},
             }
         }
     }
@@ -141,8 +161,9 @@ pub fn split_on_first_gen<'a, T: Debug, S: Debug, F>(
 }
 
 fn prefix_strip<'a, T, S, F>(arr: &'a [T], token: &[S], matches: &F) -> Option<(&'a [T], &'a [T])>
-    where F: Fn(&T, &S) -> bool {
-    
+where
+    F: Fn(&T, &S) -> bool,
+{
     for i in 0..token.len() {
         if !matches(arr.get(i)?, &token[i]) {
             return None;
@@ -152,11 +173,11 @@ fn prefix_strip<'a, T, S, F>(arr: &'a [T], token: &[S], matches: &F) -> Option<(
     Some(split)
 }
 
-/**
+/*
 This function splits an array in two at the first instance of the substring token, returning
-None if no such substring exists. 
+None if no such substring exists.
 If token is &[] then is split by entry.
-Example: 
+Example:
         let x = split_on_first("abcdabcd", "bc");
         assert_eq!(x, Some(("a","dabcd")));
 
@@ -166,35 +187,72 @@ Example:
         let y = split_on_first("abcdabcd", "");
         assert_eq!(y, Some(("a", "bcdabcd")));
 */
-pub fn split_on_first<'a, T: Eq+Debug>(arr: &'a [T], token: &[T]) -> Option<(&'a [T], &'a [T])> {
-    let (prefix, _pivot, tail) = split_on_first_gen(arr, token, &|x, y| x==y)?;
+pub fn split_on_first<'a, T: Eq + Debug>(arr: &'a [T], token: &[T]) -> Option<(&'a [T], &'a [T])> {
+    let (prefix, _pivot, tail) = split_on_first_gen(arr, token, &|x, y| x == y)?;
     Some((prefix, tail))
 }
 
-
-
-
 //takes a string "[a,b,c]" and returns a vector vec![a,b,c]
-pub fn unbracket_arr<'a>(str: &'a str, (left, right): (char,char)) -> Option<Vec<String>> {
-    let body = str.trim().strip_prefix(left)?.strip_suffix(right)?;
-    
-    let arr: Vec<String> = body.split(',').map(|x| x.to_string()).collect();
+pub fn unbracket_arr<'a>(str: &'a str, (left, right): (&str, &str)) -> Option<Vec<String>> {
+    let body = str
+        .trim()
+        .strip_prefix(left)?
+        .strip_suffix(right)?
+        .replace(" ", "");
 
-    Some(arr)
+    let mut result = Vec::new();
+    let mut tmp_str: &str = &body;
+    while tmp_str != "" {
+        let (pop, rest) = unbracket_pop(tmp_str)?;
+        tmp_str = rest;
+        result.push(pop.to_string());
+    }
+
+    // let arr: Vec<String> = body.split(',').map(|x| x.to_string()).collect();//This makes mistakes
+
+    Some(result)
+}
+
+fn unbracket_pop<'a>(str: &'a str) -> Option<(&'a str, &'a str)> {
+    if str.starts_with('[') {
+        let i = str.find(']')?;
+        return Some(str.split_at(i + 1));
+    } else if str.starts_with(',') {
+        return unbracket_pop(str.strip_prefix(',')?);
+    } else {
+        let i = str.find(',');
+        match i {
+            Some(i) => return Some(str.split_at(i)),
+            None => Some((str, "")),
+        }
+    }
+}
+
+pub fn print_arr<T: Display>(arr: &[T], (start, end): (&str, &str)) -> String {
+    let mut result = String::new();
+    result.push_str(start);
+    // result.push(',');
+    for t in arr {
+        if result.len() != 1 {
+            result.push(',');
+        }
+        result.push_str(&t.to_string());
+    }
+    result.push_str(end);
+    result
 }
 
 trait StrTools {
-    fn split_once_wrapper(&self, token: &str) -> Option<(&Self,&Self)>;
+    fn split_once_wrapper(&self, token: &str) -> Option<(&Self, &Self)>;
 }
 
 impl StrTools for str {
-
     fn split_once_wrapper<'a>(&'a self, token: &str) -> Option<(&'a str, &'a str)> {
         let self_split = self.split_once(token);
         if self_split.is_some() {
             self_split
         } else {
-            let p = self.strip_prefix(token).map(|x| ("",x));
+            let p = self.strip_prefix(token).map(|x| ("", x));
             p
         }
     }
@@ -204,7 +262,12 @@ pub fn split_sc(str: &str) -> Option<(String, String, String, String)> {
     let (first, rest1) = str.split_once_wrapper("->")?;
     let (second, rest2) = rest1.split_once_wrapper("/")?;
     let (third, fourth) = rest2.split_once_wrapper("__")?; //Add logic to handle the cases where the relevant entries are empty
-    Some((first.to_string(),second.to_string(),third.to_string(),fourth.to_string()))
+    Some((
+        first.to_string(),
+        second.to_string(),
+        third.to_string(),
+        fourth.to_string(),
+    ))
 }
 
 //fn token_gen_recursive(_s: &str) -> Vec<String> {
@@ -253,12 +316,12 @@ pub fn split_sc(str: &str) -> Option<(String, String, String, String)> {
 //                                        tokens.push([ess[0], ess[1], ess[2], ess[3]].iter().cloned().collect::<String>());
 //                                        tokens.extend(token_gen_recursive(&_s.chars().skip(4).collect::<String>()));
 //                                }
-// 
+//
 //                            }
 //                            _   => {
 //                                    tokens.push([ess[0], ess[1]].iter().cloned().collect::<String>());
 //                                    tokens.extend(token_gen_recursive(&_s.chars().skip(2).collect::<String>()));
-//                            } 
+//                            }
 //                        }
 //                    }
 //
@@ -298,11 +361,10 @@ pub fn split_sc(str: &str) -> Option<(String, String, String, String)> {
 //    tokens
 //}
 
-
-
-
-pub fn get_or<T: Eq+Clone>(vec: &[T], index: isize, fallback: T) -> T {
-    if index < 0 {return fallback;}
+pub fn get_or<T: Eq + Clone>(vec: &[T], index: isize, fallback: T) -> T {
+    if index < 0 {
+        return fallback;
+    }
     match vec.get(index.abs_diff(0)) {
         Some(x) => x.clone(),
         None => fallback,
@@ -311,7 +373,7 @@ pub fn get_or<T: Eq+Clone>(vec: &[T], index: isize, fallback: T) -> T {
 
 /*
 This checks if tok[] matches the beginning of arr[].
-E.g.: 
+E.g.:
 let arr = [1,2,3,4,5];
 let tok1 = [1,2,3];
 let tok2 = [2,3];
@@ -319,29 +381,37 @@ assert!(match_postfix(arr,tok1));
 assert!(!match_postfix(arr,tok2));
 */
 pub fn match_prefix<A: Eq>(arr: &[A], tok: &[A]) -> bool {
-    if tok.len() > arr.len() {return false;}
-    for i in 0..tok.len()  {
-        if tok[i] != arr[i] {return false;}
+    if tok.len() > arr.len() {
+        return false;
+    }
+    for i in 0..tok.len() {
+        if tok[i] != arr[i] {
+            return false;
+        }
     }
     true
 }
 
 /*
 This checks if tok[] matches the end of arr[].
-E.g.: 
+E.g.:
 let arr = [1,2,3,4,5];
 let tok1 = [3,4,5];
 let tok2 = [3,5];
 assert!(match_postfix(arr,tok1));
 assert!(!match_postfix(arr,tok2));
 */
-pub fn match_postfix<A: Eq+Debug>(arr: &[A], tok: &[A]) -> bool {
-    if tok.len() > arr.len() {return false;}
-    
+pub fn match_postfix<A: Eq + Debug>(arr: &[A], tok: &[A]) -> bool {
+    if tok.len() > arr.len() {
+        return false;
+    }
+
     let arrlen = arr.len();
     let toklen = tok.len();
     for i in 0..toklen {
-        if tok.get(toklen-i-1) != arr.get(arrlen-i-1) {return false;}// use get() instead
+        if tok.get(toklen - i - 1) != arr.get(arrlen - i - 1) {
+            return false;
+        } // use get() instead
     }
     true
 }
