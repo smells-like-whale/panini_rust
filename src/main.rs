@@ -15,9 +15,11 @@ use panini_rust::{
         SegmentShell,
     },
     util::utilities::concat_by_line,
-    xsampa::{character_translate, xsampa, xsampa_split},
+    util::csv::CSV,
+    xsampa::{character_translate, xsampa, xsampa_split,TOKEN_TRANS_LIST as TLIST},
 };
 use std::env::args;
+use std::path::Path;
 
 // type F = FeatureTable;
 // type F = FeatureGeometryBundle;
@@ -27,7 +29,14 @@ type SoundChange = SoundChangeShell<F>;
 type SegmentString = SegmentStringShell<F>;
 type Segment = SegmentShell<F>;
 
-
+fn get_row_by_col_1<T: Eq+Clone>(arr: &[Vec<T>],token: &T) -> Option<Vec<T>> {
+    for item in arr {
+        if &item[0] == token {
+            return Some(item.clone());
+        } 
+    }
+    None
+}
 
 fn main() {
     let mut args = args().skip(1);
@@ -65,6 +74,50 @@ fn main() {
         }
         Some("sc") => {
             sound_change(&mut args);
+        }
+        Some("csv") => {
+            let r_w = &args.next();
+            match r_w.as_deref() {
+                None => {}
+                Some("read") => {
+                    let test_xsampa = xsampa_split("m_= \"t_hEstn_= n_d@ \"ridn_= ?n_= \"rVj4n_= @ \"si\"Es\"vi \"faj5_=z");
+                    let path_str = args.next().unwrap();
+                    let path = Path::new(&path_str);
+
+                    let csv = CSV::import(path).unwrap();
+
+                    let mut xsm = String::new();
+                    for seg in test_xsampa {
+                        let row = get_row_by_col_1(&csv.rows, &seg);
+                        let new_seg = match row.as_ref() {
+                            Some(arr) => &arr[1],
+                            None => " ",
+                        };
+                        xsm.push_str(new_seg);
+                    }
+
+                    println!("{}", xsm);
+                    
+                }
+                Some("write") => {
+                    let path_str = args.next().unwrap();
+                    let path = Path::new(&path_str);
+
+                    let fields = vec!["ipa_sym".to_string(),"xsampa_sym".to_string()];
+
+                    let mut rows: Vec<Vec<String>> = Vec::new();
+                    for (t, c) in TLIST {
+                       let row = vec![t.to_string(),c.to_string()];
+                       rows.push(row);
+                    }
+                    
+                    let csv = CSV {col_num: 2, fields, rows};
+
+                    csv.export(path);
+
+                }
+                _ => {}
+            }
         }
         Some("help") => {
             println!("
@@ -182,13 +235,16 @@ fn xsampa_main<'a, I: Iterator<Item = String>>(args: &mut I) {
             let string_tokens = str_tokens
                 .trim()
                 .split_whitespace()
-                .map(|str| str.to_string());
+                .map(|str| str.to_string());    // Maybe avoid turning this to an owned object for no reason…
             let words: Vec<SegmentString> = string_tokens
                 .map(|str| SegmentString::from_string(&str))
                 .collect();
             let _x = SegmentString::print_words(&words);
-            let s = words[0].to_long_string();
-            println!("{s}");
+            // let word_long_strings: Vec<String> = words.iter().map(|w| w.to_long_string()).collect();
+            // let s = words[0].to_long_string();// Candidate for linewise concat
+            // let s = concat_by_line(&word_long_strings, " ");
+
+            println!("{_x}");
         }
         Some("-s") => {
             let x: String = xsampa(str_tokens);

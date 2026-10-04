@@ -10,6 +10,47 @@ use super::{
     }, Feature, SegModif, SegmentShell, TokenString
 };
 
+pub enum Bookend<T> {
+    Bookend,
+    Item(T),
+}
+
+pub struct BookendedVec<T: Clone> {
+    vec: Vec<T> 
+}
+
+impl<T: Clone> BookendedVec<T> {
+    pub fn get(&self, i:usize) -> Bookend<&T> {
+        if i == 0 || i == self.vec.len()+2 {
+            return Bookend::Bookend;
+        } else {
+            return Bookend::Item(&self.vec[i+1]);
+        } 
+    }
+    
+    pub fn get_mut(&mut self, i:usize) -> Bookend<&mut T> {
+        if i == 0 || i == self.vec.len()+2 {
+            return Bookend::Bookend;
+        } else {
+            return Bookend::Item(&mut self.vec[i+1]);
+        } 
+    }
+    pub fn set(&mut self, x:T, i:usize) {
+        if 0 < i && i< self.vec.len()+2 {
+            self.vec[i+1] = x;
+        } else {
+            eprintln!("BookendedVec::set(): Out of bounds");
+        }
+    }
+
+    pub fn extend(mut self, xs:&[T]) {
+        self.vec.extend_from_slice(xs);
+    }
+
+    pub fn push(mut self, x:T) {
+        self.vec.push(x);
+    }
+}
 
 //This represents an uninterrupted utterence, like a "word", or a sequence of "words", without "spaces"
 #[derive(Clone, Debug)]
@@ -29,9 +70,9 @@ impl<F: FeatureBundle> Display for SegmentStringShell<F> {
 impl<F: FeatureBundle> SegmentStringShell<F> {
     pub fn print_words(self_arr: &[Self]) -> String {
         let words: Vec<String> = self_arr.iter().map(|word| word.to_long_string()).collect();
-        let mut x = vec!["\n\n".to_string() + &F::Index::list_features()];
+        let mut x = vec!["\n".to_string() + &F::Index::list_features()];
         x.extend(words);
-        concat_by_line(&x, "  ")
+        concat_by_line(&x, " ")
     }
 
     pub fn new() -> Self {
@@ -88,10 +129,11 @@ impl<F: FeatureBundle> SegmentStringShell<F> {
     //     }
     // } 
     
-
+    //Should make this a little more robust wrt improper or missing edge tokens
     pub fn from_string(str: &str) -> Self {
         let bookended_str = "#".to_string()+str+"#";
         let segment_tokens = xsampa::xsampa_split_segments(&bookended_str);
+        // let segment_tokens = xsampa::xsampa_split_segments(&str);
         // println!("{:?}", segment_tokens);
         let segments: Vec<SegmentShell<F>> = segment_tokens
             .iter()
@@ -146,7 +188,7 @@ impl<F: FeatureBundle> SegmentStringShell<F> {
         let mut str_vec: Vec<String> = Vec::new();
 
         for s in &self.segments {
-            str_vec.push(s.to_short_debug_string());
+            str_vec.push(s.to_short_string());
         }
 
         str_vec

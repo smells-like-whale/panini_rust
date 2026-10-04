@@ -29,17 +29,35 @@ pub trait FeatureIndex: Sized + Copy + Clone + Debug + Eq + PartialEq + Display 
 
 pub trait FeatureBundle: Sized + Eq + PartialEq + Copy + Debug {
     type Index: FeatureIndex;
+
     fn new() -> Self;
+    
+    // Returns Some(true) or Some(false) if the bundle is specified for the input feature, None if unspecified
     fn get(&self, feature: Self::Index) -> Option<bool>;
+
+    // get() the beginning state of a contour segment
     fn get_right(&self, feature: Self::Index) -> Option<bool>;
+
+    // get() the end state of a contour segment
     fn get_left(&self, feature: Self::Index) -> Option<bool>;
+
+    // Modifies self to have feature with value Some(true)
     fn set(&mut self, feature: Self::Index, b: bool);
+
+    // Returns a copy of self where feature has value Some(true)
     // fn set_and_return(self, feature: Self::Index, b: bool) -> Self;
+    
+    // From a valid token, generate a FeatureBundle
+    fn from_string(str: &str) -> Self;
 
-    fn from_string(str: &str) -> Self; //From a valid token, generate a FeatureBundle
-    fn print(&self) -> String; //From a featureBundle, generate a best match for token
+    // From a FeatureBundle, generate a best match for token
+    fn print(&self) -> String; 
+   
+    // All things after this point are to be audited
 
-    fn to_col_str(&self) -> String; //To a column vector
+    // Outputs to newline separated string
+    fn to_col_str(&self) -> String;
+    // Outputs to 
     fn to_long_col_str(&self) -> String; //To a named column vector
 
     fn to_debug_string(&self) -> String; //To a row vector
@@ -47,6 +65,7 @@ pub trait FeatureBundle: Sized + Eq + PartialEq + Copy + Debug {
 
     fn modify(&mut self, modif: &SegModifier<Self::Index>);
 }
+
 pub fn feature_bundle_to_string<F: FeatureBundle>(fb: &F) -> String {
     let cons_chart = CONSONENT_CHART.concat();
     let non_pulm_cons_chart = NON_PULMONIC_CONSONANT_CHART.concat();
@@ -91,6 +110,7 @@ pub fn feature_bundle_to_string<F: FeatureBundle>(fb: &F) -> String {
     }
     result
 }
+
 fn taxi_dist<F: FeatureBundle>(x: &F, y: &F) -> usize {
     let x_arr = to_isize_arr(x);
     let y_arr = to_isize_arr(y);

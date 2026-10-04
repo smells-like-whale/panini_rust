@@ -29,7 +29,7 @@ pub fn pad_mut_string(str: &mut String, pad_length: usize) {
 pub fn concat_by_line(str_arr: &[String], seperator: &str) -> String {
     let mut str_pad_width: Vec<usize> = Vec::new(); //this will hold the max line width of the string in str_arr of the same index
     let mut lines_column_arr: Vec<Vec<String>> = Vec::new();
-    let mut str_pad_height: usize = str_arr
+    let mut str_pad_height: usize = str_arr //I believe this is to update the string padding width after the fact
         .iter()
         .map(|str| str.lines().try_len().unwrap_or(0))
         .max()

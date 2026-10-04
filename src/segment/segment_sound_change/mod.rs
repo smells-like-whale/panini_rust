@@ -47,6 +47,7 @@ pub fn print_fetlis<F: FeatureIndex>(fs: &FetLis<F>) -> String {
 pub enum SCSegAn<F: FeatureBundle> {
     SCSeg(SCSegment<F>),
     Skip(Vec<SCSegment<F>>),
+    // Not(Vec<SCSegment<F>>),
     SCMultiSeg(Vec<SCSegment<F>>), //Replace with SCString for more generality
 }
 

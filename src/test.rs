@@ -43,14 +43,14 @@ const TEST_STRS: &[&str] = &[
     "kanem",
     // "we:ki:nus",
     // "ratio:nem",
-    // "kentum",
+    "kentum",
     "kapra",
     "eo:",
     "rene",
     // "kabal:um",
     "sapu:tum",
-    // "sta:re",
-    // "wi:ta",
+    "sta:re",
+    "wi:ta",
     "media:num",
     // "fi:lius",
     "wenit",
@@ -65,7 +65,7 @@ const TEST_STRS: &[&str] = &[
 const PROTO_CENTRAL_ROMANCE: &[&str] = &[
     // "VN{F,#}->V~:F",
 
-    // "[+cor,-cont]->[+dist]/__",
+    "[+cor,-cont]->[+dist]/__",
     "h->/__",
     "m->_~/__#",
     "[+cons,+nas]->_~:/__[+cont,+cons]",
@@ -76,17 +76,16 @@ const PROTO_CENTRAL_ROMANCE: &[&str] = &[
     "[+syl,-len]->/[+syl][-syl,-len]__[-syl,-len][+syl]",
     "[-low,+syl]->[+high,-syl]/__[+syl]",
     "(k,t)j->t_j/__",
-    // "kj->t_j/__",
-    // "tj->t_j/__",
-    // "dj->dz/__",
-    // "n->:_~/__[+cont,+cons]",
+    "kj->t_j/__",
+    "tj->t_j/__",
+    "dj->dz/__",
+    "n->:_~/__[+cont,+cons]",
     "[+syl,-len,-low]->[-atr]/__", //Short vowel laxing
-    //
     "->I/#__s[+cons]",
     "[+syl,+len]->[-len]/__", //Loss of vowel length
     "[+syl,+nas]->[-nas]/__", //Denasaliazation
     "j->_j/[+cons]__",
-    // "[+cons,+long]->[-long]/__[+cons]",
+    "[+cons,+long]->[-long]/__[+cons]",
     // "[+cons,+long]->[-long]/[+cons]__",
     "k_j->k_j:/__",
     "g->j/__[+front,-low,+syl]",
@@ -102,24 +101,24 @@ const PRO_ROM_TO_PRO_WEST: &[&str] = &[
 ];
 
 const PRO_ROM_TO_PRO_GALLO: &[&str] = &[
-    // "[+syl,-low]->@/__#", //Reduction of word final non-low vowels
+    "[+syl,-low]->@/__#", //Reduction of word final non-low vowels
     "[+syl,-low]->@/__([+cor,+cons])_s#", //Reduction of word final non-low vowels
     "Oj->uj/__[+cons]",
     "[+cor,+high,+cons,-voi,-lab]->t-s/__", //Affrication of palatalized /k/ and /t/
     "[+dors,+cor,+high,+cons,+voi,-son,-lab]->z/__", //Affrication of palatalized /k/ and /t/
-    // "[+cor,+high,+cons,+voi,-son]->j/[+syl]__",
+    "[+cor,+high,+cons,+voi,-son]->j/[+syl]__",
     "j->d-Z/(#,r)__",
-    // "j->d-Z/r__",
+    "j->d-Z/r__",
     "a->{/__[+high,+front]",
     "[+cons,-cont,+voi,-son]->[+cont]/[+voi,-cons]__[+voi,-cons]",
     "l_j->L/__",
     "r_j->r/__",
     "aw->O/__",
-    // "@->/__#",//Loss of word final /@/
+    "@->/__#",//Loss of word final /@/
     "@->/__([+cor,+cons])_s#", //Loss of word final /@/
     "->@/[+cons]r__#",         //Loss of word final /@/
     "[+len,-syl]->[-len]/__([-syl],#)",
-    // "[+len,-syl]->[-len]/__[-syl]",
+    "[+len,-syl]->[-len]/__[-syl]",
     "[+cons,-son]->[-voi]/__#",
     "B->/__[+round]",
     "a->@/__#", //Reduction of word final /a/

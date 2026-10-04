@@ -47,7 +47,7 @@ pub fn xsampa_split_segments(_s: &str) -> Vec<String> {
     result
 }
 
-//This functiopn returns true if the input char is a valid initial character for a XSampa segment
+//This function returns true if the input char is a valid initial character for a XSampa segment
 //token
 pub fn is_initial(_c: char) -> bool {
     _c.is_ascii_alphanumeric()
@@ -358,7 +358,7 @@ impl Iterator for SegmentIter {
  * 0 to 108 are segmental tokens
  * 109 to 164 are non-segmental/modifiers and diacritics
  */
-const TOKEN_TRANS_LIST: [(&str, char); 177] = [
+pub const TOKEN_TRANS_LIST: [(&str, char); 177] = [
     ("p", 'p'),
     ("b", 'b'),
     ("b_<", '\u{0253}'),

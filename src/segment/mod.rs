@@ -217,6 +217,7 @@ impl<F: FeatureBundle> SegmentShell<F> {
         // let tokens = xsampa::xsampa_split_segments(&FeatureBundle::to_string(self.features));
         // self.tokens = tokens;
     }
+
     pub fn new() -> Self {
         let s = ASegment::new();
         SegmentShell::Seg(s)
@@ -296,11 +297,19 @@ impl<F: FeatureBundle> SegmentShell<F> {
             SegmentShell::WordEdge => "#".to_string(),
         }
     }
+    
+    pub fn to_short_string(&self) -> String {
+        match self {
+            SegmentShell::Seg(seg) => seg.to_short_debug_string(),
+            SegmentShell::Escape(s) => s.to_string(),
+            SegmentShell::WordEdge => "".to_string(),
+        }
+    }
 
     pub fn matches_unannot(&self, scseg: &SCSegment<F>) -> bool {
         match self {
             SegmentShell::Seg(seg) => seg.matches_unannot(scseg),
-            SegmentShell::Escape(s) => false,
+            SegmentShell::Escape(_) => false,
             SegmentShell::WordEdge => scseg == &SCSegment::WordEdge,
         }
     }
@@ -508,9 +517,7 @@ impl<F: FeatureBundle> ASegment<F> {
     }
 
     pub fn to_short_debug_string(&self) -> String {
-        //let mut str = self.tokens.concat();
         let mut str = xsampa::xsampa(&self.tokens.concat());
-        // str.push_str("\n");
         str.push_str(&format!("\n{}", self.features.to_debug_string()));
 
         str
@@ -1776,7 +1783,7 @@ pub fn print_xsampa_chart(b: bool) -> String {
     let cons_chart = &print_grid(&CONSONENT_CHART, &f);
     let non_pul_chart = &print_grid(&NON_PULMONIC_CONSONANT_CHART, &f);
     let vowel_chart = &print_grid(&VOWEL_CHART, &f);
-    let sep = "-------------------------------------------\n";
+    let sep = "------------------------------------------------------------------\n";
     let fet = "Class:
      Consonental
      Sonorant
